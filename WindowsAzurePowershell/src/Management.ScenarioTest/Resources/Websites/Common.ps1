@@ -114,3 +114,98 @@ function Retry-DownloadString
 	}
 	while ($retry)
 }
+
+
+
+
+
+<#
+.SYNOPSIS
+Get downloadString and verify expected string
+#>
+function Test-ValidateResultInBrowser
+{
+       param([string] $uri, [string] $expectedString)
+       $client = New-Object System.Net.WebClient
+       $resultString = $client.DownloadString($uri)
+       return $resultString.ToUpper().Contains($expectedString.ToUpper())
+}
+
+<#
+.SYNOPSIS
+Runs npm and verifies the results.
+
+.PARAMETER command
+The npm command to run
+#>
+
+function Npm-InstallExpress
+{
+	try
+	{
+		$command = "install -g express";
+		Start-Process npm $command -WAIT
+		"Y" | express
+		if([system.IO.File]::Exists("server.js"))
+		{
+			del server.js
+		}
+		mv app.js server.js
+		npm install 
+	}
+	catch
+	{
+		Write-Warning "Expected warning exist when npm install, ignore it"
+	}
+}
+
+<#
+.SYNOPSIS
+Push local git repo to website.
+
+.PARAMETER command
+Target site name to push
+
+.PARAMETER commitString
+Commit string to deployment
+
+#>
+
+function Git-PushLocalGitToWebSite
+{
+    param([string] $siteName, [string]$commitString)
+
+    $webSite = Get-AzureWebsite -Name $siteName
+    $remoteAlias = "azureins"
+
+    try
+    {
+        git add -A
+    }
+    catch
+    {
+        Write-Warning "git : expected warning: LF will be replaced by CRLF in node_modules/.bin/express."
+    } 
+
+     try
+    {
+        git commit -m $commitString
+    }
+    catch
+    {
+        Write-Warning "git : expected warning: LF will be replaced by CRLF in node_modules/.bin/express."
+    } 
+
+    Try
+    {
+        $remoteUri = "https://" + $env:GIT_USERNAME + ":" + $env:GIT_PASSWORD + "@" + $webSite.EnabledHostNames[1] + "/" + $webSite.Name + ".git"
+        git remote add $remoteAlias $remoteUri
+    }
+    Catch
+    {
+        Write-Warning " remoteUri already exist in remote list"
+    }
+    
+    # Expected message "remote: Updating branch 'master'"
+    Assert-Throws { git push $remoteAlias master }
+} 

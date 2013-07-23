@@ -600,3 +600,105 @@ function Test-GetAzureWebsiteLocation
 	Assert-NotNull { $locations }
 	Assert-True { $locations.Count -gt 0 }
 }
+
+
+
+
+
+
+
+function Test-StartStopRestartAzureWebsite
+{
+    $siteName = Get-WebsiteName
+    New-AzureWebsite $siteName
+    Stop-AzureWebsite $siteName
+    Assert-True { Retry-Function { return (Get-AzureWebsite $siteName).State -eq "Stopped" } $null 2 1 }
+    Start-AzureWebsite $siteName
+    Assert-True { Retry-Function { return (Get-AzureWebsite $siteName).State -eq "Running" } $null 2 1 }
+    Restart-AzureWebsite $siteName
+    Assert-True { Retry-Function { return (Get-AzureWebsite $siteName).State -eq "Running" } $null 2 1 }
+
+    # Cleanup
+    Remove-AzureWebsite $siteName -Force
+} 
+
+function Test-RestoreWebsiteDeployment
+{
+    $GIT_USERNAME = $env:GIT_USERNAME
+    $GIT_PASSWORD = $env:GIT_PASSWORD
+    
+    # Setup
+    $siteName = Get-WebsiteName
+    $commitString = "initial commit"
+
+    Set-Location "\"
+    mkdir $siteName
+    Set-Location $siteName
+    
+    # Install express
+    Npm-InstallExpress
+
+    New-AzureWebsite $siteName -Git -PublishingUsername $GIT_USERNAME
+
+    # Push local git to website
+    $commitString = "initial commit"
+    Git-PushLocalGitToWebSite $siteName $commitString
+
+    $url = "http://" + (Get-AzureWebsite -Name $siteName).EnabledHostNames[0]
+
+    # Verify browse website
+    $expectedString1 = "Welcome to Express"
+    Assert-True { Retry-Function { Test-ValidateResultInBrowser $url $expectedString1 } $null 30 1 }
+
+    $CommitId = (Get-AzureWebsiteDeployment).Id
+    # Change the iisnode.yml file
+    [System.IO.File]::WriteAllText(".\iisnode.yml", [System.IO.File]::ReadAllText(".\iisnode.yml").Replace("loggingEnabled: false","loggingEnabled: true"))
+    [System.IO.File]::WriteAllText(".\iisnode.yml", [System.IO.File]::ReadAllText(".\iisnode.yml").Replace("devErrorsEnabled: false","devErrorsEnabled: true"))
+
+    # Change the routes\index.js file
+    [System.IO.File]::WriteAllText(".\routes\index.js", [System.IO.File]::ReadAllText(".\routes\index.js").Replace("Express","Express in Azure"))
+
+    # Push local git to website
+    Git-PushLocalGitToWebSite $siteName $commitString
+
+    $expectString2 = "welcome to express in azure"
+    # repeat this 3 or more times
+    1..4 | Foreach { Assert-True { Retry-Function { Test-ValidateResultInBrowser $url $expectedString2 } $null 30 1 } }
+
+    Save-AzureWebsiteLog -Output .\log.zip
+    # Verify that log zip file is creates
+    Assert-True { Test-Path .\log.zip }
+
+    Assert-NotNull { Get-AzureWebsiteDeployment | Where-Object { ($_.Message).Contains("initial commit") -and ($_.Id -ne $CommitId ) } } 
+
+    Restore-AzureWebsiteDeployment $siteName -CommitId $CommitId -Force
+
+    Assert-True { (Get-AzureWebsiteDeployment | Where-Object { $_.Current -eq $true }).Id -eq $CommitId }
+    Assert-True { Retry-Function { Test-ValidateResultInBrowser $url $expectedString1 } $null 30 1 }
+
+    # CleanUP
+    if((Get-AzureWebsite -Name $siteName) -ne $null)
+    {
+          Remove-AzureWebsite $siteName -Force
+    }   
+}
+
+function Test-GetSetAzureWebsite
+{
+    $siteName = Get-WebsiteName
+
+    New-AzureWebsite $siteName
+    $site = Get-AzureWebsite $siteName
+    $site.AppSettings["foo"] = "bar"
+    $site.AppSettings["foo2"] = "bar2"
+    $site | Set-AzureWebsite
+    $site = Get-AzureWebsite $siteName
+
+    # check app setting has the expected key val pair
+    Assert-AreEqual $site.AppSettings["foo"] "bar"
+    Assert-AreEqual $site.AppSettings["foo2"] "bar2"
+
+    # Cleanup
+    Remove-AzureWebsite $siteName -Force
+} 
+
