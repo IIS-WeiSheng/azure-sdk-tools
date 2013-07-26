@@ -31,7 +31,7 @@ namespace Microsoft.WindowsAzure.Management.ScenarioTest.CloudServiceTests
         public override void TestSetup()
         {
             base.TestSetup();
-            // powershell.AddScript("Initialize-CloudServiceTest");
+            powershell.AddScript("Initialize-CloudServiceTest");
         }
 
         [TestMethod]
@@ -53,27 +53,5 @@ namespace Microsoft.WindowsAzure.Management.ScenarioTest.CloudServiceTests
         {
             RunPowerShellTest("Test-UpdateCacheService");
         }
-
-        [TestMethod]
-        [TestCategory(Category.All)]
-        [TestCategory(Category.CloudService)]
-        [TestCategory(Category.OneSDK)]
-        [TestCategory(Category.CIT)]
-        public void TestPublishUpdateServiceWithNewRuntime()
-        {
-            RunPowerShellTest("Test-PublishUpdateServiceWithNewRuntime");
-        }
-
-        [TestMethod]
-        [TestCategory(Category.All)]
-        [TestCategory(Category.CloudService)]
-        [TestCategory(Category.OneSDK)]
-        [TestCategory(Category.CIT)]
-        public void TestPublishUpdateServiceWithEmptyDeployment()
-        {
-            RunPowerShellTest("Test-PublishUpdateServiceWithEmptyDeployment");
-        }
-
     }
 }
-
