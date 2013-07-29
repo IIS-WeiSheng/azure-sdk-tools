@@ -260,5 +260,16 @@ namespace Microsoft.WindowsAzure.Management.ScenarioTest.ServiceBusTests
         }
 
         #endregion
+
+        [TestMethod]
+        [TestCategory(Category.All)]
+        [TestCategory(Category.Websites)]
+        [TestCategory(Category.WAPack)]
+        public void TestAzureSBNamespace()
+        {
+            RunPowerShellTest("Test-AzureSBNamespace");
+        }
+
+
     }
 }
