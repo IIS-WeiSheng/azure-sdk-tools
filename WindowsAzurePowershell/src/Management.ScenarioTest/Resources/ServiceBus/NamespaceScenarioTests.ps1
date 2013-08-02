@@ -418,3 +418,28 @@ function Test-RemoveAzureSBNamespaceWhatIfError
 	# Test
 	Assert-Throws { Remove-AzureSBNamespace "123InvalidName" -WhatIf -Force } "The provided name `"123InvalidName`" does not match the service bus namespace naming rules.`r`nParameter name: Name"
 }
+
+function Test-AzureSBNamespace
+{
+    $loc = (Get-AzureSBLocation).Code[0]
+    $namespaceName = "NameSpace" + (Get-Random).ToString()
+
+    New-AzureSBNamespace $namespaceName -Location $loc
+    Assert-True { (Get-AzureSBNamespace $namespaceName).Region -eq $loc }
+
+    Assert-True { Test-AzureName -ServiceBusNamespace $namespaceName }
+    Assert-False { Test-AzureName -ServiceBusNamespace ($namespaceName + "001") }
+
+    $namespaceName2 = "NameSpace" + (Get-Random).ToString()
+    $namespaceName3 = "NameSpace" + (Get-Random).ToString()
+    New-AzureSBNamespace $namespaceName2 -Location $loc
+    New-AzureSBNamespace $namespaceName3 -Location $loc
+
+    $allNames = (Get-AzureSBNamespace).Name
+    Assert-True { $allNames.Contains($namespaceName) -and $allNames.Contains($namespaceName2) -and $allNames.Contains($namespaceName3)}
+
+    # CleanUP
+    Remove-AzureSBNamespace -Name $namespaceName -Force
+    Remove-AzureSBNamespace -Name $namespaceName2 -Force
+    Remove-AzureSBNamespace -Name $namespaceName3 -Force
+}

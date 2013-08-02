@@ -134,25 +134,24 @@ Runs npm and verifies the results.
 .PARAMETER command
 The npm command to run
 #>
-
 function Npm-InstallExpress
 {
-	try
-	{
-		$command = "install -g express";
-		Start-Process npm $command -WAIT
-		"Y" | express
-		if([system.IO.File]::Exists("server.js"))
-		{
-			del server.js
-		}
-		mv app.js server.js
-		npm install 
-	}
-	catch
-	{
-		Write-Warning "Expected warning exist when npm install, ignore it"
-	}
+       try
+       {
+              $command = "install -g express";
+              Start-Process npm $command -WAIT
+              "Y" | express
+              if([system.IO.File]::Exists("server.js"))
+              {
+                     del server.js
+              }
+              mv app.js server.js
+              npm install 
+       }
+       catch
+       {
+              Write-Warning "Expected warning exist when npm install, ignore it"
+       }
 }
 
 <#
@@ -161,21 +160,45 @@ Push local git repo to website.
 
 .PARAMETER command
 Target site name to push
-#>
 
+.PARAMETER commitString
+Commit string to deployment
+#>
 function Git-PushLocalGitToWebSite
 {
-	param([string] $siteName)
-	$webSite = Get-AzureWebsite -Name $siteName
+    param([string] $siteName, [string]$commitString)
 
-	# Expected warning: LF will be replaced by CRLF in node_modules/.bin/express." when run git command
-	Assert-Throws { git add -A } 
-	$commitString = "Update azurewebsite with local git"
-	Assert-Throws { git commit -m $commitString }
+    $webSite = Get-AzureWebsite -Name $siteName
+    $remoteAlias = "azureins"
 
-	$remoteAlias = "azureins"
-	$remoteUri = "https://" + $env:GIT_USERNAME + ":" + $env:GIT_PASSWORD + "@" + $webSite.EnabledHostNames[1] + "/" + $webSite.Name + ".git"
-	git remote add $remoteAlias $remoteUri
-	# Expected message "remote: Updating branch 'master'"
-	Assert-Throws { git push $remoteAlias master }
+    try
+    {
+        git add -A
+    }
+    catch
+    {
+        Write-Warning "git : expected warning: LF will be replaced by CRLF in node_modules/.bin/express."
+    } 
+
+     try
+    {
+        git commit -m $commitString
+    }
+    catch
+    {
+        Write-Warning "git : expected warning: LF will be replaced by CRLF in node_modules/.bin/express."
+    } 
+
+    Try
+    {
+        $remoteUri = "https://" + $env:GIT_USERNAME + ":" + $env:GIT_PASSWORD + "@" + $webSite.EnabledHostNames[1] + "/" + $webSite.Name + ".git"
+        git remote add $remoteAlias $remoteUri
+    }
+    Catch
+    {
+        Write-Warning "Remote name already exist in remote list"
+    }
+    
+    # Expected message "remote: Updating branch 'master'"
+    Assert-Throws { git push $remoteAlias master }
 }

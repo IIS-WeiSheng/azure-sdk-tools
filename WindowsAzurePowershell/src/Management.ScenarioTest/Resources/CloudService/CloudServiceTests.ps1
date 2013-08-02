@@ -459,3 +459,59 @@ function Test-StartAzureEmulatorTwice
 	# Assert
 	Assert-NotNull $service
 }
+
+function Test-PublishUpdateServiceWithNewRuntime
+{
+    $srvName = Get-CloudServiceName
+    md $srvName
+    cd $srvName
+
+    New-AzureServiceProject $srvName
+    Add-AzureNodeWebRole
+    $srv = Publish-AzureServiceProject -Verbose
+    Assert-True { Test-ValidateResultInBrowser $srv.Url "Hello World" }
+
+    # Select a runtime that "IsDefault" equal false and git it's version
+    $srvRuntime = Get-AzureServiceProjectRoleRuntime -Runtime Node | Where-Object { -not $_.IsDefault } | Select-Object -First 1
+    Assert-NotNull $srvRuntime
+
+    Set-AzureServiceProjectRole WebRole1 -Runtime Node -Version $srvRuntime.Version
+    Publish-AzureServiceProject -Verbose
+
+    # verify that ‘hello world’ is shown on page
+    Assert-True { Test-ValidateResultInBrowser $srv.Url "Hello World" }
+
+    # Cleanup
+    Remove-AzureService $srvName -Force
+}
+
+
+function Test-PublishUpdateServiceWithEmptyDeployment
+{
+    $srvName = Get-CloudServiceName
+    md $srvName
+    cd $srvName
+    
+    # select a location that contains service "Compute"
+    $loc = Get-AzureLocation  | Where-Object { $_.AvailableServices.Contains("Compute") } | Select-Object -First 1
+    Assert-NotNull $loc
+
+    New-AzureService $srvName -Location $loc.Name
+    New-AzureServiceProject $srvName
+    Set-AzureServiceProject -Location $loc
+    Add-AzureNodeWebRole
+    $srv = Publish-AzureServiceProject -Verbose
+
+    Assert-True { Retry-Function { Test-ValidateResultInBrowser $srv.Url "Hello World" } $null 4 1 }
+
+    # select a runtime with "IsDefault" equal false, and get it's version
+    $srvRuntime = Get-AzureServiceProjectRoleRuntime -Runtime Node | Where-Object { -not $_.IsDefault } | Select-Object -First 1
+    Assert-NotNull $srvRuntime
+    
+    Set-AzureServiceProjectRole WebRole1 -Runtime Node –Version $srvRuntime.Version
+    $srv = Publish-AzureServiceProject
+    Assert-True { Retry-Function { Test-ValidateResultInBrowser $srv.Url "Hello World" } $null 4 1 }
+
+    # Cleanup
+    Remove-AzureService $srvName -Force
+} 

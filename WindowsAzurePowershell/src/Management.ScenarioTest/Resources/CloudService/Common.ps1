@@ -186,3 +186,11 @@ function Test-RemoteDesktop
 	foreach ($c in "P@ssw0rd!".ToCharArray()) {$password.AppendChar($c)}
 	Enable-AzureServiceProjectRemoteDesktop -Username user1 -Password $password
 }
+
+function Test-ValidateResultInBrowser
+{
+       param([string] $uri, [string] $expectedString)
+       $client = New-Object System.Net.WebClient
+       $resultString = $client.DownloadString($uri)
+       return $resultString.ToUpper().Contains($expectedString.ToUpper())
+} 
